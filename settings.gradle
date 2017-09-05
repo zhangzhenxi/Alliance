@@ -1,0 +1,12 @@
+import groovy.json.JsonSlurper
+
+include ':app', ':alliance'
+
+def json = new JsonSlurper().parse(new File(rootProject.projectDir, 'config.json'))
+String membersStr = json.members
+String[] members = membersStr.split(',')
+for (String member : members) {
+	String projectPath = ":$member"
+	include(projectPath)
+	project(projectPath).projectDir = new File("./members/${member}")
+}

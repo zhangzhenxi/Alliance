@@ -1,0 +1,85 @@
+import com.android.build.gradle.internal.dsl.DefaultConfig
+import groovy.json.JsonSlurper
+
+// Top-level build file where you can add configuration options common to all sub-projects/modules.
+
+buildscript {
+	
+	repositories {
+		google()
+		jcenter()
+	}
+	dependencies {
+		classpath 'com.android.tools.build:gradle:3.0.0-beta4'
+		
+		// NOTE: Do not place your application dependencies here; they belong
+		// in the individual module build.gradle files
+	}
+}
+
+allprojects {
+	repositories {
+		google()
+		jcenter()
+	}
+}
+
+task clean(type: Delete) {
+	delete rootProject.buildDir
+}
+
+def json = new JsonSlurper().parse(new File(rootProject.projectDir, 'config.json'))
+String membersStr = json.members
+String[] members = membersStr.split(',')
+TreeMap configs = json.configs
+
+project(':app').beforeEvaluate { project ->
+	Configuration implementation = project.configurations.maybeCreate('implementation')
+	for (String member : members) {
+		String projectPath = ":$member"
+		Dependency dependency = project.dependencies.project([path: projectPath, configuration: ''])
+		implementation.dependencies.add(dependency)
+	}
+	Dependency dependency = project.dependencies.project([path: ':alliance', configuration: ''])
+	implementation.dependencies.add(dependency)
+	project.configurations.add(implementation)
+}
+
+project(':app').afterEvaluate { project ->
+//	DefaultConfig type = project.android.defaultConfig
+//	type.addManifestPlaceholders()
+}
+
+project(':alliance').afterEvaluate { project ->
+	try {
+		DefaultConfig type = project.android.defaultConfig
+		type.addManifestPlaceholders(configs)
+		
+		configs.put("members", membersStr)
+		
+		configs.entrySet().each { entry ->
+			if (null == entry.key || "" == entry.key) {
+				return
+			}
+			type.buildConfigField('String', "${entry.key}", "\"${entry.value}\"")
+			type.resValue('string', "${entry.key}", "${entry.value}")
+		}
+		
+	} catch (Exception e) {
+		e.printStackTrace()
+	}
+}
+
+rootProject.subprojects.findAll { project ->
+	if (project.name != 'app' && project.name != 'alliance') {
+		return project
+	}
+}.each { p ->
+	println "SUB PROJECT [name : ${p.name}, path : ${p.path}]"
+	p.beforeEvaluate { project ->
+		Configuration implementation = project.configurations.maybeCreate('implementation')
+		Dependency dependency = project.dependencies.project([path: ':alliance', configuration: ''])
+		implementation.dependencies.add(dependency)
+		project.configurations.add(implementation)
+	}
+}

@@ -1,0 +1,7 @@
+{
+	"members": "alipay,wechat",
+	"configs": {
+		"wechatAppId": "stubId",
+		"wechatAppKey": "stubKey"
+	}
+}
